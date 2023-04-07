@@ -21,7 +21,7 @@ public struct DecodeResponseHandler: ResponseHandler {
             return .done(value)
         } catch {
             printJSON(data: data)
-            return .error(error)
+            return .error(HTTPResponseError.error(error: error, statusCode: response.statusCode))
         }
     }
     

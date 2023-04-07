@@ -14,15 +14,10 @@ struct ServerErrorResponseHandler: ResponseHandler {
     
     func apply<Req>(request: Req, data: Data, response: HTTPURLResponse) async -> ResponseAction<Req> where Req : HTTPRequest {
         do {
-            guard JSONSerialization.isValidJSONObject(data) else {
-                return .error(ResponseError.serverError(statusCode: response.statusCode))
-            }
-            
-            let decoder = JSONDecoder()
-            let value = try decoder.decode(APIError.self, from: data)
-            return .error(ResponseError.apiError(error: value, statusCode: response.statusCode))
+            let value = try request.decoder.decode(HTTPResponseError.ErrorResponse.self, from: data)
+            return .error(HTTPResponseError.error(errorResponse: value, statusCode: response.statusCode))
         } catch {
-            return .error(error)
+            return .error(HTTPResponseError.error(error: error, statusCode: response.statusCode))
         }
     }
     

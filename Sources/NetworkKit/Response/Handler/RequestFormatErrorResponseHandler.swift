@@ -8,7 +8,7 @@
 import Foundation
 
 private struct RequestFormatErrorResponse: Decodable {
-    let code: String
+    let code: Int
 }
 
 struct RequestFormatErrorResponseHandler: ResponseHandler {
@@ -19,13 +19,12 @@ struct RequestFormatErrorResponseHandler: ResponseHandler {
     
     func apply<Req>(request: Req, data: Data, response: HTTPURLResponse) async -> ResponseAction<Req> where Req : HTTPRequest {
         do {
-            let decoder = JSONDecoder()
             printJSON(data: data)
-            let value = try decoder.decode(RequestFormatErrorResponse.self, from: data)
+            let value = try request.decoder.decode(RequestFormatErrorResponse.self, from: data)
             
-            return .error(ResponseError.error(code: value.code, statusCode: response.statusCode))
+            return .error(HTTPResponseError.error(errorCode: value.code, statusCode: response.statusCode))
         } catch {
-            return .error(error)
+            return .error(HTTPResponseError.error(error: error, statusCode: response.statusCode))
         }
     }
     
