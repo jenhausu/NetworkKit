@@ -72,8 +72,8 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
             case .continue(let data, let response):
                 return await handleResponse(handlers, request: request, data: data, response: response)
                 
-            case .restartWith(let handlers):
                 return await send(request, handlers: handlers)
+            case .restart(let handlers):
                 
             case .error(let error):
                 return .failure(error)

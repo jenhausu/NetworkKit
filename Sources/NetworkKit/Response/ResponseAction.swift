@@ -9,7 +9,7 @@ import Foundation
 
 public enum ResponseAction<Req: HTTPRequest> {
     case `continue`(Data, HTTPURLResponse)
-    case restartWith([ResponseHandler])
+    case restart([ResponseHandler])
     case error(Error)
     case done(Req.ResponseType)
 }
