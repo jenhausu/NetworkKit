@@ -41,6 +41,7 @@ public extension HTTPRequest {
     var responseHandlers: [ResponseHandler] {[
         ServerErrorResponseHandler(),
         RequestFormatErrorResponseHandler(),
+        TimeoutResponseHandler(),
         BadResponseHandler(),
         DataMappingHandler(
             condition: { $0.isEmpty },
