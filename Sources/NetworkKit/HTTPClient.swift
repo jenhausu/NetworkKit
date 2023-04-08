@@ -9,19 +9,13 @@ import Foundation
 
 public protocol HTTPClientProtocol {
     func send<Req: HTTPRequest>(_ request: Req) async -> Result<Req.ResponseType, Error>
-    func send<Req: HTTPRequest>(_ request: Req, handlers: [ResponseHandler]) async -> Result<Req.ResponseType, Error>
 }
 
 public class HTTPClient: NSObject, HTTPClientProtocol {
     
     private let session: URLSession = URLSession.shared
-        
-    public func send<Req>(_ request: Req) async -> Result<Req.ResponseType, Error> where Req : HTTPRequest {
-        await self.send(request, handlers: [])
-    }
     
-    public func send<Req: HTTPRequest>(_ request: Req,
-                                       handlers: [ResponseHandler] = []) async -> Result<Req.ResponseType, Error> {
+    public func send<Req: HTTPRequest>(_ request: Req) async -> Result<Req.ResponseType, Error> {
         let urlRequest: URLRequest
         do {
             urlRequest = try request.buildRequest()
@@ -29,27 +23,22 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
             return .failure(error)
         }
         
+        let result: (data: Data, response: URLResponse)
         do {
-            let result: (data: Data, response: URLResponse)
             if #available(iOS 15, *) {
                 result = try await session.data(for: urlRequest, delegate: self)
             } else {
                 result = try await session.data(for: urlRequest)
             }
-            
-            guard let response = result.response as? HTTPURLResponse else {
-                return .failure(ResponseError.nonHTTPResponse)
-            }
-            
-            var handlers = handlers
-            if handlers.isEmpty {
-                handlers = request.responseHandlers
-            }
-            
-            return await handleResponse(handlers, request: request, data: result.data, response: response)
         } catch {
             return .failure(error)
         }
+        
+        guard let response = result.response as? HTTPURLResponse else {
+            return .failure(HTTPResponseError.nonHTTPResponse)
+        }
+        
+        return await handleResponse(request.responseHandlers, request: request, data: result.data, response: response)
     }
     
     private func handleResponse<Req: HTTPRequest>(_ handlers: [ResponseHandler],
@@ -57,23 +46,23 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
                                                   data: Data,
                                                   response: HTTPURLResponse) async -> Result<Req.ResponseType, Error> {
         guard !handlers.isEmpty else {
-            fatalError("No decision left but did not reach a stop.")
+            fatalError("No handler left but did not reach a stop.")
         }
         
-        var handlers = handlers
-        let current = handlers.removeFirst()
+        var mutableHandlers = handlers
+        let currentHandler = mutableHandlers.removeFirst()
         
-        guard current.shouldApply(request: request, data: data, response: response) else {
-            return await handleResponse(handlers, request: request, data: data, response: response)
+        guard currentHandler.shouldApply(request: request, data: data, response: response) else {
+            return await handleResponse(mutableHandlers, request: request, data: data, response: response)
         }
         
-        let action = await current.apply(request: request, data: data, response: response)
+        let action = await currentHandler.apply(request: request, data: data, response: response)
         switch action {
             case .continue(let data, let response):
-                return await handleResponse(handlers, request: request, data: data, response: response)
+                return await handleResponse(mutableHandlers, request: request, data: data, response: response)
                 
-                return await send(request, handlers: handlers)
-            case .restart(let handlers):
+            case .restart:
+                return await send(request)
                 
             case .error(let error):
                 return .failure(error)
