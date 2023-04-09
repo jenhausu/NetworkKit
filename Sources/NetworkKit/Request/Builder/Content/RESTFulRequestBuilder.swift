@@ -31,7 +31,7 @@ public struct RESTFulRequestBuilder: RequestBuilder {
         switch method {
             case .get, .patch, .put, .delete:
                 urlString.append("/\(id)")
-            default:
+            case .post:
                 break
         }
         
