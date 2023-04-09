@@ -36,6 +36,18 @@ struct RequestContentBuilder: RequestBuilder {
 }
 
 private extension ContentType {
+fileprivate extension Encodable {
+    func dictValue(encoder: JSONEncoder) -> [String: Any] {
+        do {
+            let data = try encoder.encode(self)
+            let dict = try JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any] ?? [:]
+            return dict
+        } catch {
+            return [:]
+        }
+    }
+}
+
     
     var headerBuilder: AnyBuilder {
         AnyBuilder { req in
