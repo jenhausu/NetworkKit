@@ -20,10 +20,11 @@ public struct RESTFulRequestBuilder: RequestBuilder {
     }
     
     public func adapted(_ request: URLRequest) throws -> URLRequest {
-        var request = request
         guard let url = request.url else {
             throw RequestError.noURL
         }
+        
+        var mutableRequest = request
         
         var urlString = url.absoluteString
         urlString.append(resource)
@@ -35,9 +36,9 @@ public struct RESTFulRequestBuilder: RequestBuilder {
                 break
         }
         
-        request.url = URL(string: urlString)
+        mutableRequest.url = URL(string: urlString)
         
-        return request
+        return mutableRequest
     }
     
 }
