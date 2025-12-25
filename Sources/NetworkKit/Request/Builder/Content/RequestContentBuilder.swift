@@ -35,7 +35,6 @@ struct RequestContentBuilder: RequestBuilder {
     
 }
 
-private extension ContentType {
 fileprivate extension Encodable {
     func dictValue(encoder: JSONEncoder) -> [String: Any] {
         do {
@@ -48,6 +47,7 @@ fileprivate extension Encodable {
     }
 }
 
+fileprivate extension ContentType {
     
     var headerBuilder: AnyBuilder {
         AnyBuilder { req in
