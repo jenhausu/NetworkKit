@@ -9,12 +9,26 @@ import Foundation
 
 public protocol HTTPClientProtocol {
     func send<Req: HTTPRequest>(_ request: Req) async -> Result<Req.ResponseType, Error>
+    func sendTask<Req: HTTPRequest>(_ request: Req) -> NetworkTask<Req.ResponseType>
 }
 
 public class HTTPClient: NSObject, HTTPClientProtocol {
-    
+
     private let session: URLSession = URLSession.shared
-    
+
+    /// 發送可取消的網路請求
+    /// - Parameter request: HTTP 請求
+    /// - Returns: 可取消的 NetworkTask
+    public func sendTask<Req: HTTPRequest>(_ request: Req) -> NetworkTask<Req.ResponseType> {
+        let task = Task<Result<Req.ResponseType, Error>, Never> {
+            await self.send(request)
+        }
+        return NetworkTask(task: task)
+    }
+
+    /// 發送 HTTP 請求
+    /// - Parameter request: HTTP 請求
+    /// - Returns: 請求結果
     public func send<Req: HTTPRequest>(_ request: Req) async -> Result<Req.ResponseType, Error> {
         let urlRequest: URLRequest
         do {
@@ -31,6 +45,10 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
                 result = try await session.data(for: urlRequest)
             }
         } catch {
+            // 檢查是否為取消錯誤
+            if Task.isCancelled {
+                return .failure(URLError(.cancelled))
+            }
             return .failure(error)
         }
         
@@ -81,17 +99,23 @@ extension HTTPClient: URLSessionTaskDelegate {
 @available(iOS, deprecated: 15.0, message: "Use the built-in API instead")
 private extension URLSession {
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
-        try await withCheckedThrowingContinuation { continuation in
-            let task = self.dataTask(with: request) { data, response, error in
-                guard let data = data, let response = response else {
-                    let error = error ?? URLError(.badServerResponse)
-                    return continuation.resume(throwing: error)
+        var dataTask: URLSessionDataTask?
+
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<(Data, URLResponse), Error>) in
+                dataTask = self.dataTask(with: request) { data, response, error in
+                    guard let data = data, let response = response else {
+                        let error = error ?? URLError(.badServerResponse)
+                        return continuation.resume(throwing: error)
+                    }
+
+                    continuation.resume(returning: (data, response))
                 }
-                
-                continuation.resume(returning: (data, response))
+
+                dataTask?.resume()
             }
-            
-            task.resume()
+        } onCancel: {
+            dataTask?.cancel()
         }
     }
 }
