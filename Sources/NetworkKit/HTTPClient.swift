@@ -10,6 +10,7 @@ import Foundation
 public protocol HTTPClientProtocol {
     func send<Req: HTTPRequest>(_ request: Req) async -> Result<Req.ResponseType, Error>
     func sendTask<Req: HTTPRequest>(_ request: Req) -> NetworkTask<Req.ResponseType>
+    func addEventMonitor(_ monitor: EventMonitor)
 }
 
 public class HTTPClient: NSObject, HTTPClientProtocol {
@@ -18,12 +19,19 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
     public static let shared = HTTPClient()
 
     private let session: URLSession
+    private var eventMonitors: [EventMonitor] = []
 
     /// 初始化 HTTPClient
     /// - Parameter session: URLSession 實例，預設使用 URLSession.shared
     public init(session: URLSession = .shared) {
         self.session = session
         super.init()
+    }
+
+    /// 添加事件監控器
+    /// - Parameter monitor: EventMonitor 實例
+    public func addEventMonitor(_ monitor: EventMonitor) {
+        eventMonitors.append(monitor)
     }
 
     /// 發送可取消的網路請求
@@ -46,7 +54,9 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
         } catch {
             return .failure(error)
         }
-        
+
+        eventMonitors.forEach { $0.requestWillStart(urlRequest) }
+
         let result: (data: Data, response: URLResponse)
         do {
             if #available(iOS 15, *) {
@@ -55,17 +65,31 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
                 result = try await session.data(for: urlRequest)
             }
         } catch {
-            // 檢查是否為取消錯誤
             if Task.isCancelled {
-                return .failure(URLError(.cancelled))
+                let cancelError = URLError(.cancelled)
+                eventMonitors.forEach {
+                    $0.requestDidFinish(urlRequest, response: nil, data: nil, error: cancelError, metrics: nil)
+                }
+                return .failure(cancelError)
+            }
+            eventMonitors.forEach {
+                $0.requestDidFinish(urlRequest, response: nil, data: nil, error: error, metrics: nil)
             }
             return .failure(error)
         }
-        
+
         guard let response = result.response as? HTTPURLResponse else {
-            return .failure(HTTPResponseError.nonHTTPResponse)
+            let error = HTTPResponseError.nonHTTPResponse
+            eventMonitors.forEach {
+                $0.requestDidFinish(urlRequest, response: nil, data: result.data, error: error, metrics: nil)
+            }
+            return .failure(error)
         }
-        
+
+        eventMonitors.forEach {
+            $0.requestDidFinish(urlRequest, response: response, data: result.data, error: nil, metrics: nil)
+        }
+
         return await handleResponse(request.responseHandlers, request: request, data: result.data, response: response)
     }
     
