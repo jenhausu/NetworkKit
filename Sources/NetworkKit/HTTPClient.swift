@@ -14,7 +14,17 @@ public protocol HTTPClientProtocol {
 
 public class HTTPClient: NSObject, HTTPClientProtocol {
 
-    private let session: URLSession = URLSession.shared
+    /// 全域共享的 HTTPClient 實例
+    public static let shared = HTTPClient()
+
+    private let session: URLSession
+
+    /// 初始化 HTTPClient
+    /// - Parameter session: URLSession 實例，預設使用 URLSession.shared
+    public init(session: URLSession = .shared) {
+        self.session = session
+        super.init()
+    }
 
     /// 發送可取消的網路請求
     /// - Parameter request: HTTP 請求
