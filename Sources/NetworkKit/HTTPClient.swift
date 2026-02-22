@@ -23,6 +23,8 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
     private let session: URLSession
     private var eventMonitors: [EventMonitor] = []
     private var interceptors: [RequestInterceptor] = []
+    /// 重試策略，nil 表示不重試
+    public var retryPolicy: RetryPolicy?
 
     /// 初始化 HTTPClient
     /// - Parameter session: URLSession 實例，預設使用 URLSession.shared
@@ -63,15 +65,16 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
     /// - Parameter request: HTTP 請求
     /// - Returns: 請求結果
     public func send<Req: HTTPRequest>(_ request: Req) async -> Result<Req.ResponseType, Error> {
+        await performSend(request, retryCount: 0)
+    }
+
+    private func performSend<Req: HTTPRequest>(_ request: Req, retryCount: Int) async -> Result<Req.ResponseType, Error> {
         let urlRequest: URLRequest
         do {
             var builtRequest = try request.buildRequest()
-
-            // 套用所有 interceptors
             for interceptor in interceptors {
                 builtRequest = try await interceptor.adapt(builtRequest)
             }
-
             urlRequest = builtRequest
         } catch {
             return .failure(error)
@@ -97,6 +100,11 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
             eventMonitors.forEach {
                 $0.requestDidFinish(urlRequest, response: nil, data: nil, error: error, metrics: nil)
             }
+            // 網路錯誤重試
+            if let policy = retryPolicy, policy.shouldRetry(error: error, retryCount: retryCount) {
+                try? await Task.sleep(nanoseconds: UInt64(policy.delay(for: retryCount) * 1_000_000_000))
+                return await performSend(request, retryCount: retryCount + 1)
+            }
             return .failure(error)
         }
 
@@ -112,9 +120,15 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
             $0.requestDidFinish(urlRequest, response: response, data: result.data, error: nil, metrics: nil)
         }
 
+        // HTTP 狀態碼重試（在 response handler 處理前）
+        if let policy = retryPolicy, policy.shouldRetry(statusCode: response.statusCode, retryCount: retryCount) {
+            try? await Task.sleep(nanoseconds: UInt64(policy.delay(for: retryCount) * 1_000_000_000))
+            return await performSend(request, retryCount: retryCount + 1)
+        }
+
         return await handleResponse(request.responseHandlers, request: request, data: result.data, response: response)
     }
-    
+
     private func handleResponse<Req: HTTPRequest>(_ handlers: [ResponseHandler],
                                                   request: Req,
                                                   data: Data,
@@ -122,25 +136,25 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
         guard !handlers.isEmpty else {
             fatalError("No handler left but did not reach a stop.")
         }
-        
+
         var mutableHandlers = handlers
         let currentHandler = mutableHandlers.removeFirst()
-        
+
         guard currentHandler.shouldApply(request: request, data: data, response: response) else {
             return await handleResponse(mutableHandlers, request: request, data: data, response: response)
         }
-        
+
         let action = await currentHandler.apply(request: request, data: data, response: response)
         switch action {
             case .continue(let data, let response):
                 return await handleResponse(mutableHandlers, request: request, data: data, response: response)
-                
+
             case .restart:
-                return await send(request)
-                
+                return await performSend(request, retryCount: 0)
+
             case .error(let error):
                 return .failure(error)
-                
+
             case .done(let value):
                 return .success(value)
         }
