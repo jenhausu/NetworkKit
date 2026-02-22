@@ -11,6 +11,7 @@ public protocol HTTPClientProtocol {
     func send<Req: HTTPRequest>(_ request: Req) async -> Result<Req.ResponseType, Error>
     func sendTask<Req: HTTPRequest>(_ request: Req) -> NetworkTask<Req.ResponseType>
     func addEventMonitor(_ monitor: EventMonitor)
+    func addInterceptor(_ interceptor: RequestInterceptor)
 }
 
 public class HTTPClient: NSObject, HTTPClientProtocol {
@@ -20,6 +21,7 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
 
     private let session: URLSession
     private var eventMonitors: [EventMonitor] = []
+    private var interceptors: [RequestInterceptor] = []
 
     /// 初始化 HTTPClient
     /// - Parameter session: URLSession 實例，預設使用 URLSession.shared
@@ -32,6 +34,12 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
     /// - Parameter monitor: EventMonitor 實例
     public func addEventMonitor(_ monitor: EventMonitor) {
         eventMonitors.append(monitor)
+    }
+
+    /// 添加請求攔截器
+    /// - Parameter interceptor: RequestInterceptor 實例
+    public func addInterceptor(_ interceptor: RequestInterceptor) {
+        interceptors.append(interceptor)
     }
 
     /// 發送可取消的網路請求
@@ -50,7 +58,14 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
     public func send<Req: HTTPRequest>(_ request: Req) async -> Result<Req.ResponseType, Error> {
         let urlRequest: URLRequest
         do {
-            urlRequest = try request.buildRequest()
+            var builtRequest = try request.buildRequest()
+
+            // 套用所有 interceptors
+            for interceptor in interceptors {
+                builtRequest = try await interceptor.adapt(builtRequest)
+            }
+
+            urlRequest = builtRequest
         } catch {
             return .failure(error)
         }
