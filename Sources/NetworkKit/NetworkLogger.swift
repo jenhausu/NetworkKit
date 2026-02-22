@@ -80,7 +80,11 @@ public final class NetworkLogger: EventMonitor {
             lines.append("\(icon) [\(response.statusCode)] \(request.url?.absoluteString ?? "unknown") | Duration: \(duration)")
 
             if level >= .headers {
-                let headers = response.allHeaderFields
+                let headers: [String: String] = response.allHeaderFields.reduce(into: [:]) { result, pair in
+                    if let key = pair.key as? String, let value = pair.value as? String {
+                        result[key] = value
+                    }
+                }
                 if !headers.isEmpty {
                     lines.append("   Headers: \(formatHeaders(headers))")
                 }

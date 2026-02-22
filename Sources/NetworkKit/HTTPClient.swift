@@ -17,7 +17,8 @@ public protocol HTTPClientProtocol {
 public class HTTPClient: NSObject, HTTPClientProtocol {
 
     /// 全域共享的 HTTPClient 實例
-    public static let shared = HTTPClient()
+    /// 可在 app 啟動時替換為自訂配置的實例
+    public static var shared = HTTPClient()
 
     private let session: URLSession
     private var eventMonitors: [EventMonitor] = []
@@ -28,6 +29,12 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
     public init(session: URLSession = .shared) {
         self.session = session
         super.init()
+    }
+
+    /// 便利初始化 - 以 URLSessionConfiguration 建立 HTTPClient
+    /// - Parameter configuration: URLSessionConfiguration 實例
+    public convenience init(configuration: URLSessionConfiguration) {
+        self.init(session: URLSession(configuration: configuration))
     }
 
     /// 添加事件監控器
