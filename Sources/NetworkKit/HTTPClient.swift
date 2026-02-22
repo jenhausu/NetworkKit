@@ -56,7 +56,22 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
     /// - Returns: 可取消的 NetworkTask
     public func sendTask<Req: HTTPRequest>(_ request: Req) -> NetworkTask<Req.ResponseType> {
         let task = Task<Result<Req.ResponseType, Error>, Never> {
-            await self.send(request)
+            await self.performSend(request, retryCount: 0, uploadProgressHandler: nil)
+        }
+        return NetworkTask(task: task)
+    }
+
+    /// 發送可取消的網路請求（附上傳進度回調）
+    /// - Parameters:
+    ///   - request: HTTP 請求
+    ///   - uploadProgress: 上傳進度回調
+    /// - Returns: 可取消的 NetworkTask
+    public func sendTask<Req: HTTPRequest>(
+        _ request: Req,
+        uploadProgress: @escaping (RequestProgress) -> Void
+    ) -> NetworkTask<Req.ResponseType> {
+        let task = Task<Result<Req.ResponseType, Error>, Never> {
+            await self.performSend(request, retryCount: 0, uploadProgressHandler: uploadProgress)
         }
         return NetworkTask(task: task)
     }
@@ -65,10 +80,14 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
     /// - Parameter request: HTTP 請求
     /// - Returns: 請求結果
     public func send<Req: HTTPRequest>(_ request: Req) async -> Result<Req.ResponseType, Error> {
-        await performSend(request, retryCount: 0)
+        await performSend(request, retryCount: 0, uploadProgressHandler: nil)
     }
 
-    private func performSend<Req: HTTPRequest>(_ request: Req, retryCount: Int) async -> Result<Req.ResponseType, Error> {
+    private func performSend<Req: HTTPRequest>(
+        _ request: Req,
+        retryCount: Int,
+        uploadProgressHandler: ((RequestProgress) -> Void)?
+    ) async -> Result<Req.ResponseType, Error> {
         let urlRequest: URLRequest
         do {
             var builtRequest = try request.buildRequest()
@@ -82,10 +101,20 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
 
         eventMonitors.forEach { $0.requestWillStart(urlRequest) }
 
+        // 有進度回調時使用獨立的 delegate，否則使用 self
+        let taskDelegate: URLSessionTaskDelegate?
+        if let handler = uploadProgressHandler {
+            let progressDelegate = TaskProgressDelegate()
+            progressDelegate.uploadProgressHandler = handler
+            taskDelegate = progressDelegate
+        } else {
+            taskDelegate = self
+        }
+
         let result: (data: Data, response: URLResponse)
         do {
             if #available(iOS 15, *) {
-                result = try await session.data(for: urlRequest, delegate: self)
+                result = try await session.data(for: urlRequest, delegate: taskDelegate)
             } else {
                 result = try await session.data(for: urlRequest)
             }
@@ -103,7 +132,7 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
             // 網路錯誤重試
             if let policy = retryPolicy, policy.shouldRetry(error: error, retryCount: retryCount) {
                 try? await Task.sleep(nanoseconds: UInt64(policy.delay(for: retryCount) * 1_000_000_000))
-                return await performSend(request, retryCount: retryCount + 1)
+                return await performSend(request, retryCount: retryCount + 1, uploadProgressHandler: uploadProgressHandler)
             }
             return .failure(error)
         }
@@ -123,7 +152,7 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
         // HTTP 狀態碼重試（在 response handler 處理前）
         if let policy = retryPolicy, policy.shouldRetry(statusCode: response.statusCode, retryCount: retryCount) {
             try? await Task.sleep(nanoseconds: UInt64(policy.delay(for: retryCount) * 1_000_000_000))
-            return await performSend(request, retryCount: retryCount + 1)
+            return await performSend(request, retryCount: retryCount + 1, uploadProgressHandler: uploadProgressHandler)
         }
 
         return await handleResponse(request.responseHandlers, request: request, data: result.data, response: response)
@@ -150,7 +179,7 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
                 return await handleResponse(mutableHandlers, request: request, data: data, response: response)
 
             case .restart:
-                return await performSend(request, retryCount: 0)
+                return await performSend(request, retryCount: 0, uploadProgressHandler: nil)
 
             case .error(let error):
                 return .failure(error)
