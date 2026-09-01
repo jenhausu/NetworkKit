@@ -162,8 +162,10 @@ public class HTTPClient: NSObject, HTTPClientProtocol {
                                                   request: Req,
                                                   data: Data,
                                                   response: HTTPURLResponse) async -> Result<Req.ResponseType, Error> {
+        // handler 鏈跑完仍沒有終點：伺服器回了預期外但合法的 HTTP 回應（例如非 200/204 的 2xx）。
+        // 這是執行期狀況不是 programmer error，回 failure 讓呼叫端能 catch，不該讓宿主 App crash。
         guard !handlers.isEmpty else {
-            fatalError("No handler left but did not reach a stop.")
+            return .failure(HTTPResponseError.error(statusCode: response.statusCode))
         }
 
         var mutableHandlers = handlers
