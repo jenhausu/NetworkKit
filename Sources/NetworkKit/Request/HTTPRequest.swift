@@ -47,7 +47,6 @@ public extension HTTPRequest {
             condition: { $0.isEmpty },
             transform: { _ in "{}".data(using: .utf8)! }
         ),
-        NoContentResponseHandler(),
         DecodeResponseHandler()
     ]}
     

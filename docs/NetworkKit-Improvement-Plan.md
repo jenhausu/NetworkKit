@@ -4,9 +4,29 @@
 
 ---
 
+## ✅ 進度總覽（2026-09 更新）
+
+| # | 功能 | 狀態 | Commit |
+|---|------|------|--------|
+| 1 | Request Interceptor | ✅ 已完成 | `41d62d8` |
+| 2 | Retry Policy | ✅ 已完成 | `a97ffca` |
+| 3 | Event Monitor / Logger | ✅ 已完成 | `ba83fd2`, `0ab26f8` |
+| 4 | Progress Tracking | ✅ 已完成 | `744888c` |
+| 5 | File Upload（MultipartFormData） | ✅ 已完成 | `715e5fa` |
+| 6 | 可配置的 URLSessionConfiguration | ✅ 已完成 | `05ad29e` |
+| 7 | Mock/Stub Support | ⬜ 待處理 | — |
+| 8 | Combine Publisher | ⬜ 待處理 | — |
+| 9 | Certificate Pinning | ⬜ 待處理 | — |
+| 10 | Network Reachability | ⬜ 待處理 | — |
+
+Sprint 1-3 的六項核心功能皆已實作。以下各節保留原始規劃內容以供參考，
+剩餘工作見「中優先級」與文末的「既有設計缺陷」稽核。
+
+---
+
 ## 🔴 極高優先級（立即需要）
 
-### 1. Request Interceptor（請求攔截器）⭐⭐⭐⭐⭐
+### 1. Request Interceptor（請求攔截器）⭐⭐⭐⭐⭐ — ✅ 已完成（`41d62d8`）
 
 **為什麼最重要**：
 - 幾乎每個實際專案都需要
@@ -53,7 +73,7 @@ struct UserRequest: HTTPRequest {
 
 ---
 
-### 2. Retry Policy（智能重試策略）⭐⭐⭐⭐⭐
+### 2. Retry Policy（智能重試策略）⭐⭐⭐⭐⭐ — ✅ 已完成（`a97ffca`）
 
 **為什麼重要**：
 - 大幅提升 app 可靠性
@@ -102,7 +122,7 @@ HTTPClient.shared.setRetryPolicy(retryPolicy)
 
 ---
 
-### 3. Network Logger / Event Monitor（日誌與監控）⭐⭐⭐⭐
+### 3. Network Logger / Event Monitor（日誌與監控）⭐⭐⭐⭐ — ✅ 已完成（`ba83fd2`, `0ab26f8`）
 
 **為什麼重要**：
 - Debug 時最需要
@@ -151,7 +171,7 @@ HTTPClient.shared.addEventMonitor(logger)
 
 ## 🟡 高優先級（近期需要）
 
-### 4. Progress Tracking（進度追蹤）⭐⭐⭐⭐
+### 4. Progress Tracking（進度追蹤）⭐⭐⭐⭐ — ✅ 已完成（`744888c`）
 
 **為什麼重要**：
 - 檔案上傳/下載必需
@@ -191,7 +211,9 @@ task.uploadProgress { progress in
 
 ---
 
-### 5. File Upload Support（完整檔案上傳）⭐⭐⭐⭐
+### 5. File Upload Support（完整檔案上傳）⭐⭐⭐⭐ — ✅ 已完成（`715e5fa`）
+
+> 實作為 `MultipartFormDataRequest` protocol + `MultipartFormData`（`append` 支援文字欄位 / `Data` / 本地 File URL，自動推斷 MIME type）。API 與下方原始草案略有出入，以程式碼為準。
 
 **為什麼重要**：
 - 目前的 FormData 只支援簡單欄位
@@ -236,7 +258,7 @@ struct UploadImageRequest: MultipartRequest {
 
 ---
 
-### 6. 可配置的 URLSessionConfiguration⭐⭐⭐
+### 6. 可配置的 URLSessionConfiguration⭐⭐⭐ — ✅ 已完成（`05ad29e`）
 
 **為什麼重要**：
 - 不同場景需要不同配置（timeout、cache）
@@ -299,67 +321,39 @@ HTTPClient.configureShared { config in
 
 ## 📊 總結對比表
 
-| 功能 | 影響力 | 實用性 | 實作難度 | 優先級 | 預估時間 |
-|------|--------|--------|----------|--------|----------|
-| **Request Interceptor** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | 🟡 中等 | 🔴 極高 | 2-3 天 |
-| **Retry Policy** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | 🟡 中等偏難 | 🔴 極高 | 3-4 天 |
-| **Event Monitor/Logger** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | 🟢 簡單 | 🔴 極高 | 1-2 天 |
-| **Progress Tracking** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | 🟡 中等 | 🟡 高 | 2-3 天 |
-| **File Upload** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | 🟡 中等 | 🟡 高 | 3-4 天 |
-| **Configurable URLSession** | ⭐⭐⭐ | ⭐⭐⭐ | 🟢 簡單 | 🟡 高 | 1 天 |
-| Mock/Stub Support | ⭐⭐⭐ | ⭐⭐⭐ | 🟡 中等 | 🟢 中 | 2-3 天 |
-| Combine Publisher | ⭐⭐ | ⭐⭐ | 🟢 簡單 | 🟢 中 | 1 天 |
-| Certificate Pinning | ⭐⭐ | ⭐⭐ | 🔴 難 | 🟢 低 | 5+ 天 |
-| Network Reachability | ⭐⭐ | ⭐⭐ | 🟢 簡單 | 🟢 低 | 1 天 |
+| 功能 | 影響力 | 實用性 | 實作難度 | 優先級 | 狀態 |
+|------|--------|--------|----------|--------|------|
+| **Request Interceptor** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | 🟡 中等 | 🔴 極高 | ✅ 已完成 |
+| **Retry Policy** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | 🟡 中等偏難 | 🔴 極高 | ✅ 已完成 |
+| **Event Monitor/Logger** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | 🟢 簡單 | 🔴 極高 | ✅ 已完成 |
+| **Progress Tracking** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | 🟡 中等 | 🟡 高 | ✅ 已完成 |
+| **File Upload** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | 🟡 中等 | 🟡 高 | ✅ 已完成 |
+| **Configurable URLSession** | ⭐⭐⭐ | ⭐⭐⭐ | 🟢 簡單 | 🟡 高 | ✅ 已完成 |
+| Mock/Stub Support | ⭐⭐⭐ | ⭐⭐⭐ | 🟡 中等 | 🟢 中 | ⬜ 待處理 |
+| Combine Publisher | ⭐⭐ | ⭐⭐ | 🟢 簡單 | 🟢 中 | ⬜ 待處理 |
+| Certificate Pinning | ⭐⭐ | ⭐⭐ | 🔴 難 | 🟢 低 | ⬜ 待處理 |
+| Network Reachability | ⭐⭐ | ⭐⭐ | 🟢 簡單 | 🟢 低 | ⬜ 待處理 |
 
 ---
 
 ## 🎯 建議實作順序
 
-### Sprint 1（1 週）
-1. **Event Monitor/Logger**（1-2 天）- 立即改善開發體驗
-2. **Request Interceptor**（2-3 天）- 解決最大痛點
-3. **Configurable URLSession**（1 天）- 順便改善
+### Sprint 1-3（已完成）
+1. ✅ Event Monitor/Logger
+2. ✅ Request Interceptor
+3. ✅ Configurable URLSession
+4. ✅ Retry Policy
+5. ✅ Progress Tracking
+6. ✅ File Upload Support
 
-### Sprint 2（1 週）
-4. **Retry Policy**（3-4 天）- 提升可靠性
-5. **Progress Tracking**（2-3 天）- 為檔案上傳做準備
+### 接下來（剩餘工作）
 
-### Sprint 3（1 週）
-6. **File Upload Support**（3-4 天）- 完整的檔案上傳功能
+先處理文末「既有設計缺陷」的 D-G，再視需求評估 Mock/Stub 與 Combine。
+Certificate Pinning / Reachability 影響力低，可用第三方庫或延後。
 
----
-
-## 💡 為什麼這個順序？
-
-### 1. Event Monitor/Logger 先做
-- **最簡單**（1-2 天）
-- **立即價值**：Debug 更方便
-- **為後續功能鋪路**：Interceptor 和 Retry 都會用到
-
-### 2. Request Interceptor 第二
-- **最高價值**
-- **解決 80% 的常見需求**
-- 有了 Logger，實作和測試更容易
-
-### 3. Retry Policy 第三
-- **提升可靠性**
-- 需要 Event Monitor 來追蹤重試行為
-- 可能與 Interceptor 互動（如 401 refresh token）
-
-### 4. Progress + File Upload 最後
-- 相對獨立的功能
-- 有了前面的基礎，實作更順暢
-
----
-
-## 🚀 如果只能選三個
-
-1. **Request Interceptor** - 沒有它就像沒有插座的房子
-2. **Retry Policy** - 讓 app 更可靠
-3. **Event Monitor/Logger** - Debug 和監控的基礎
-
-這三個實作完後，NetworkKit 就能滿足 90% 的實際專案需求！
+**建議下一步**：Mock/Stub Support — 目前已有 `RequestInterceptor` 與可注入的
+`URLSessionConfiguration`，加測試用的 `MockURLProtocol` 或 client 層 stub 成本不高，
+且能直接改善 NetworkKit 自身與使用端的測試體驗。
 
 ---
 
@@ -370,31 +364,34 @@ HTTPClient.configureShared { config in
 | 基本請求 | ✅ | ✅ | ✅ |
 | Async/Await | ✅ | ✅ | ✅ |
 | Request Cancellation | ✅ | ✅ | ✅ |
-| Request Interceptor | ✅ | ❌ | ✅ |
-| Retry Policy | ✅ | ⚠️ (只有 408) | ✅ |
-| Event Monitor | ✅ | ❌ | ✅ |
-| Progress Tracking | ✅ | ❌ | ✅ |
-| File Upload | ✅ | ⚠️ (簡單) | ✅ |
+| Request Interceptor | ✅ | ✅ | ✅ |
+| Retry Policy | ✅ | ✅ | ✅ |
+| Event Monitor | ✅ | ✅ | ✅ |
+| Progress Tracking | ✅ | ✅ | ✅ |
+| File Upload | ✅ | ✅ | ✅ |
 | GraphQL | ⚠️ (需第三方) | ✅ | ✅ |
 | Certificate Pinning | ✅ | ❌ | ❌ |
 | Network Reachability | ✅ | ❌ | ❌ |
 | Combine/Rx | ✅ | ❌ | ⚠️ |
 
 **完成度**：
-- 當前：**50%**
-- 完成 Sprint 1-3 後：**85%**
+- 原始評估：**50%**
+- Sprint 1-3 完成後（現況）：**85%**
 
 ---
 
 ## 總結
 
-NetworkKit 目前最缺乏的三大核心功能：
+原本點名的三大核心功能 —— Request Interceptor、Retry Policy、Event Monitor ——
+連同 Progress Tracking、File Upload、Configurable URLSession 皆已實作完成，
+NetworkKit 已具備可用於生產環境的能力。
 
-1. 🥇 **Request Interceptor** - 統一處理 auth、logging、versioning
-2. 🥈 **Retry Policy** - 自動重試，提升可靠性
-3. 🥉 **Event Monitor** - 可觀測性和除錯
+**仍適用的建議**：
 
-實作完這三個後，NetworkKit 就能從「玩具專案」升級到「可用於生產環境的框架」！
+- Mock/Stub Support（🟢 中）— 改善測試體驗，成本不高
+- Combine Publisher（🟢 中）— 視使用端是否有 Combine 需求
+- Certificate Pinning / Network Reachability（🟢 低）— 影響力有限，可延後或用第三方庫
+- 文末「既有設計缺陷」D-G —— 重試機制整合、執行緒安全等，屬於既有實作的收尾（A/B/C 已修）
 
 ---
 
@@ -409,10 +406,14 @@ NetworkKit 目前最缺乏的三大核心功能：
 handler 鏈裡 `DecodeResponseHandler` 只認 `== 200`、`BadResponseHandler` 只認非 2xx，
 204 這種「成功但沒 body」會穿過整條鏈，最後在 `HTTPClient` 用光 handler。
 
-修法：新增 `NoContentResponseHandler`（`statusCode == 204` → 視為成功 → decode 呼叫端宣告的空回應型別），
-插在 `DataMappingHandler` 之後、`DecodeResponseHandler` 之前。
+修法（初版，commit `2f9194c`）：新增 `NoContentResponseHandler`（`statusCode == 204` → 視為成功
+→ decode 呼叫端宣告的空回應型別），插在 `DataMappingHandler` 之後、`DecodeResponseHandler` 之前。
 
 一次修好 4 個會踩到的端點：`UnlikePhoto`、`RemoveBookmark`、`DeleteAccount`、`MergeMember`。
+
+> 後續：C 的修正把 `DecodeResponseHandler` 放寬成 `200...299` 後，`NoContentResponseHandler`
+> 與它完全重疊（204 的空 body 已被前面的 `DataMappingHandler` 補成 `{}`），故已移除，
+> 204 的處理併回 `DecodeResponseHandler`。
 
 #### B. `handleResponse` 用 `fatalError` 兜底（已修，commit `3c7afb4`）
 
@@ -422,20 +423,22 @@ handler 鏈裡 `DecodeResponseHandler` 只認 `== 200`、`BadResponseHandler` �
 
 修法：改回 `.failure(HTTPResponseError.error(statusCode:))`。
 所有現在與未來的 handler 鏈縫隙，從「閃退」變成「App 能 `catch` 的錯誤」。
-這比逐一補 handler 更根本——兩個都做：204 給正確語意、`fatalError` 兜底當安全網。
+這比逐一補 handler 更根本——兩個都做：2xx 給正確語意、`fatalError` 兜底當安全網。
 
 ### 潛在但目前沒踩到
 
-#### C. 2xx 但非 200 / 204（201 / 202 / 206…）
+#### C. 2xx 但非 200 / 204（201 / 202 / 206…）（已修）
 
-`DecodeResponseHandler` 只認 `== 200`，其餘 2xx 全落空。有了修正 B 之後不會再 crash，
-但會變成 `.failure`，語意仍不對（201 Created 應該是成功）。
+原本 `DecodeResponseHandler` 只認 `== 200`，其餘 2xx 全落空 → 修正 B 之後不 crash，
+但會變成 `.failure`，語意不對（201 Created 應該是成功）。
+
+修法：把 `DecodeResponseHandler.shouldApply` 放寬成 `(200...299).contains(statusCode)`，
+整個 2xx 區間都走 decode。連帶讓 A 的 `NoContentResponseHandler` 變成多餘而移除
+（204 空 body 已由 `DataMappingHandler` 補成 `{}`，`DecodeResponseHandler` 照常處理）。
 
 - server 目前唯一的 201 是 `PhotoReportController` 的 `.created`（檢舉照片）
-- iOS 的 `reportPhoto` 是手刻 `URLRequest`、沒走 NetworkKit，所以現在剛好沒事
-- 只要哪天有人加一個走 NetworkKit、server 回 201 的端點，就是下一顆地雷
-
-建議：把 `DecodeResponseHandler` 的條件放寬成 `200...299`，或補一個 `SuccessResponseHandler` 收整個 2xx 區間。
+- iOS 的 `reportPhoto` 是手刻 `URLRequest`、沒走 NetworkKit，所以先前剛好沒事
+- 現在即使有人加走 NetworkKit、server 回 201 的端點也不會踩雷
 
 #### 不受影響的（沒走 NetworkKit）
 
@@ -470,7 +473,7 @@ Swift 6 concurrency 檢查會直接報。
 |---|------|--------|------|
 | A | 204 沒有終端 handler | 🔴 會 crash | ✅ 已修 `2f9194c` |
 | B | `handleResponse` 用 `fatalError` 兜底 | 🔴 會 crash | ✅ 已修 `3c7afb4` |
-| C | 2xx 非 200/204 語意不對 | 🟡 潛在 | ⬜ 待處理 |
+| C | 2xx 非 200/204 語意不對 | 🟡 潛在 | ✅ 已修（`DecodeResponseHandler` 放寬為 200...299） |
 | D | `TimeoutResponseHandler` 無限重試 | 🟡 活鎖風險 | ⬜ 待處理 |
 | E | `HTTPClient` data race | 🟡 Swift 6 會擋 | ⬜ 待處理 |
 | F | 兩套重試機制不協調 | 🟢 技術債 | ⬜ 待處理 |
