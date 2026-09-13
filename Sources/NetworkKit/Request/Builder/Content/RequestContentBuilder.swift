@@ -15,7 +15,7 @@ struct RequestContentBuilder: RequestBuilder {
     let encoder: JSONEncoder
     
     func adapted(_ req: URLRequest) throws -> URLRequest {
-        let dict = param.dictValue(encoder: encoder)
+        let dict = try param.dictValue(encoder: encoder)
         
         switch method {
             case .get, .delete:
@@ -36,14 +36,12 @@ struct RequestContentBuilder: RequestBuilder {
 }
 
 fileprivate extension Encodable {
-    func dictValue(encoder: JSONEncoder) -> [String: Any] {
-        do {
-            let data = try encoder.encode(self)
-            let dict = try JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any] ?? [:]
-            return dict
-        } catch {
-            return [:]
+    func dictValue(encoder: JSONEncoder) throws -> [String: Any] {
+        let data = try encoder.encode(self)
+        guard let dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw RequestError.paramEncodingFailed
         }
+        return dict
     }
 }
 

@@ -7,7 +7,8 @@
 
 import Foundation
 
-public enum RequestError: Error {
+public enum RequestError: Error, Equatable {
     case baseURLInvalid
     case noURL
+    case paramEncodingFailed
 }
