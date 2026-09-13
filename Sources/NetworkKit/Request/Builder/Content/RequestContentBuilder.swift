@@ -15,20 +15,27 @@ struct RequestContentBuilder: RequestBuilder {
     let encoder: JSONEncoder
     
     func adapted(_ req: URLRequest) throws -> URLRequest {
-        let dict = try param.dictValue(encoder: encoder)
-        
         switch method {
             case .get, .delete:
+                let dict = try param.dictValue(encoder: encoder)
                 return try URLQueryDataBuilder(data: dict).adapted(req)
             case .post, .put, .patch:
                 var request = req
-                
+
                 let headerBuilder = contentType.headerBuilder
                 request = try headerBuilder.adapted(request)
-                
-                let dataBuilder = contentType.dataBuilder(for: dict)
-                request = try dataBuilder.adapted(request)
-                
+
+                switch contentType {
+                    case .json:
+                        request.httpBody = try encoder.encode(param)
+                    case .url:
+                        let dict = try param.dictValue(encoder: encoder)
+                        request = try URLRequestDataBuilder(data: dict).adapted(request)
+                    case .formData:
+                        let dict = try param.dictValue(encoder: encoder)
+                        request = try FormDataRequestDataBuilder(param: dict).adapted(request)
+                }
+
                 return request
         }
     }
@@ -62,17 +69,6 @@ fileprivate extension ContentType {
             request.setValue(value, forHTTPHeaderField: "Content-Type")
             
             return request
-        }
-    }
-    
-    func dataBuilder(for parameters: [String: Any]) -> RequestBuilder {
-        switch self {
-            case .json:
-                return JSONRequestDataBuilder(param: parameters)
-            case .url:
-                return URLRequestDataBuilder(data: parameters)
-            case .formData:
-                return FormDataRequestDataBuilder(param: parameters)
         }
     }
     
